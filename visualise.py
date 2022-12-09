@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from gym_minigrid.window import Window
 
 if __name__ == '__main__':
-    env_key="Minigrid-PickUpObj-Custom-v0" # "MiniGrid-Empty-Random-5x5-v0"
+    env_key="Minigrid-PickUpObj-Custom-v0"
     env = gym.make(env_key) # gym.make(env_key, num_dists=9, size=11)
     env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
     env = RGBImgObsWrapper(env) # Wrapper for pixel observations

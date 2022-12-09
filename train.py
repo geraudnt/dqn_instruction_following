@@ -35,7 +35,7 @@ def evaluate(args):
 def train(env,
             path='models',
             load_model=False,
-            save_models=False,
+            save_model=False,
             max_episodes=int(1e6),
             learning_starts=int(1e4),
             replay_buffer_size=int(1e5),
@@ -116,7 +116,7 @@ def train(env,
             if success_rate > success_rate_best:
                 avg_return_best = avg_return
                 success_rate_best = success_rate
-                if save_models:
+                if load_model:
                     ### Save models
                     agent.save()
                     print("\nModels saved. ar: {}, sr: {}\n".format(avg_return_best, success_rate_best))
@@ -133,8 +133,8 @@ def train(env,
             print("steps {}".format(steps))
             print("episodes {}".format(episode))
             print("mission {}".format(obs['mission']))
-            print("average return: best {}, current {}".format(avg_return_best,avg_return))
-            print("success rate best {}, current {}".format(success_rate_best,success_rate))
+            print("average return: current {}, eval_current {}, eval_best {}".format(avg_return_,avg_return_best,avg_return))
+            print("success rate: current {}, eval_current {}, eval_best {}".format(success_rate_,success_rate_best,success_rate))
             print("% time spent exploring {}".format(int(100 * eps_schedule(steps))))
             print("--------------------------------------------------------")
     
@@ -142,13 +142,13 @@ def train(env,
 
 
 if __name__ == '__main__':    
-    env_key="Minigrid-PickUpObj-Custom-v0" # "MiniGrid-Empty-Random-5x5-v0"
+    env_key="Minigrid-PickUpObj-Custom-v0"
     env = gym.make(env_key) # gym.make(env_key, num_dists=9, size=11)
     env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
     env = RGBImgObsWrapper(env) # Wrapper for pixel observations
     # env = RGBImgObsWrapper(env, obs_size=84) # Use obs_size=84 normally as in the DQN nature paper
     path='models/{}'.format(env_key)
 
-    train(env, path = path, save_models=True)
+    train(env, path = path, save_model=True, load_model=True)
 
     
