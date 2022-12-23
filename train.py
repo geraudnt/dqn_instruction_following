@@ -15,27 +15,36 @@ from envs.wrappers import *
 
 from library import *
 
-def evaluate(args):
-    env, model, num_episodes, max_episode_timesteps  = args
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '--env_key',
+    default="MiniGrid-Custom-PickUpObj-12x12-v0", # "MiniGrid-DoorKey-8x8-v0"
+    help="Environment"
+)
+args = parser.parse_args()
 
+def evaluate(env, model, max_steps):
     returns, successes = (0, 0)
-    for _ in range(num_episodes):
-        obs = env.reset()
-        mission = tokenize(obs['mission'],model['vocab'])
-        for t in range(max_episode_timesteps):
-            action = select_action(model, obs['image'], mission)
-            new_obs, reward, done, info = env.step(action)
-            obs = new_obs
-            returns+=reward
-            successes+=(reward>0)+0
-            if done:
-                break
+    obs = env.reset()
+    mission = tokenize(obs['mission'],model['vocab'])
+    for t in range(max_steps):
+        action = select_action(model, obs['image'], mission)
+        new_obs, reward, done, info = env.step(action)
+        obs = new_obs
+        returns += reward
+        successes += (reward>0)
+        if done:
+            break
     return [returns, successes]
 
 def train(env,
-            path='models',
+            model_path="model",
+            logs_path="logs",
+            eval_model=False,
+            save_model=True,
+            save_logs=True,
             load_model=False,
-            save_model=False,
             max_episodes=int(1e6),
             learning_starts=int(1e4),
             replay_buffer_size=int(1e5),
@@ -46,31 +55,32 @@ def train(env,
             learning_rate=1e-4,
             eps_initial=1.0,
             eps_final=0.1,
-            eps_success=0.98,
-            timesteps_success = 100,
+            max_steps = 100,
             mean_episodes=100,
             eps_timesteps=int(5e5),
             print_freq=10):
+    
+    if hasattr(env, "max_steps"):
+        max_steps = env.max_steps
     
     ### Initialising
     eps_schedule = LinearSchedule(eps_timesteps, eps_final, eps_initial)
     replay_buffer = ReplayBuffer(replay_buffer_size, batch_size)
     
-    agent = Agent(env, gamma=gamma, learning_rate=learning_rate, replay_buffer=replay_buffer, path=path)
-    if load_model and os.path.exists(path):
-        model = load(path, env)
+    agent = Agent(env, gamma=gamma, learning_rate=learning_rate, replay_buffer=replay_buffer, path=model_path)
+    if load_model and os.path.exists(model_path):
+        model = load(model_path, env)
         agent.vocab = model['vocab']
         agent.q_func.load_state_dict(model['params'].state_dict())
         agent.target_q_func.load_state_dict(model['params'].state_dict())
         print('RL model loaded')
     model = {'params': agent.q_func, 'vocab': agent.vocab}
-    agent.path = path
 
     # Training  
     episode_returns = []
     episode_successes = []
-    avg_return = 0
-    success_rate = 0
+    eval_returns = []
+    eval_successes = []
     avg_return_best = 0
     success_rate_best = 0
     steps = 0
@@ -82,7 +92,7 @@ def train(env,
         episode_successes.append(0.0)
         done = False
         t = 0
-        while not done and t<timesteps_success:
+        while not done and t<max_steps:
             ### Collecting experience
             if random.random() > eps_schedule(steps):
                 action = select_action(model, obs['image'], mission)
@@ -92,8 +102,8 @@ def train(env,
             new_obs, reward, done, info = env.step(action)
             replay_buffer.add(mission, obs['image'], action, reward, new_obs['image'], done, info)
             obs = new_obs
-            episode_returns[-1] += (gamma**t)*reward
-            episode_successes[-1] = (t<timesteps_success)*(episode_returns[-1]>0)
+            episode_returns[-1] += reward
+            episode_successes[-1] = (reward>0)
 
             ### Updating agent    
             if steps > learning_starts:
@@ -104,51 +114,47 @@ def train(env,
 
             t += 1    
             steps += 1
-        if episode % 500 == 0:
-            print("evaluating ...")
-            args = [env,
-                    model,
-                    mean_episodes,
-                    timesteps_success]
-            returns, successes = evaluate(args)
-            avg_return, success_rate = (returns/mean_episodes, successes/mean_episodes)
-            
-            if success_rate > success_rate_best:
+        
+        returns, successes = 0, 0
+        if eval_model:
+            returns, successes = evaluate(env, model, max_steps)
+        eval_returns.append(returns)
+        eval_successes.append(successes)
+        
+        ### Print and Save training progress
+        if print_freq is not None and episode % print_freq == 0:
+            avg_return = round(np.mean(episode_returns[-mean_episodes-1:-1]), 1)
+            success_rate = np.mean(episode_successes[-mean_episodes-1:-1]) 
+            eval_avg_return = round(np.mean(eval_returns[-mean_episodes-1:-1]), 1)
+            eval_success_rate = np.mean(eval_successes[-mean_episodes-1:-1]) 
+            if avg_return > avg_return_best:
                 avg_return_best = avg_return
                 success_rate_best = success_rate
-                if load_model:
-                    ### Save models
+                if save_model:
                     agent.save()
-                    print("\nModels saved. ar: {}, sr: {}\n".format(avg_return_best, success_rate_best))
-            
-            if success_rate_best > eps_success:
-                print("\nTask solved: success_rate > {}\n".format(eps_success))  
-                break
-                
-        ### Print training progress
-        if done and print_freq is not None and episode % print_freq == 0:
-            avg_return_ = round(np.mean(episode_returns[-mean_episodes-1:-1]), 1)
-            success_rate_ = np.mean(episode_successes[-mean_episodes-1:-1]) 
+                    print("\nModel saved. ar: {}, sr: {}\n".format(avg_return_best, success_rate_best))    
+            if save_logs:
+                np.save(logs_path, [episode_returns, episode_successes, eval_returns, eval_successes]) 
             print("--------------------------------------------------------")
             print("steps {}".format(steps))
             print("episodes {}".format(episode))
             print("mission {}".format(obs['mission']))
-            print("average return: current {}, eval_current {}, eval_best {}".format(avg_return_,avg_return_best,avg_return))
-            print("success rate: current {}, eval_current {}, eval_best {}".format(success_rate_,success_rate_best,success_rate))
+            print("average return: current {}, best {}, eval {}".format(avg_return,avg_return_best,eval_avg_return))
+            print("success rate: current {}, best {}, eval {}".format(success_rate,success_rate_best,eval_success_rate))
             print("% time spent exploring {}".format(int(100 * eps_schedule(steps))))
             print("--------------------------------------------------------")
     
-    return agent, model, episode_returns, episode_successes
+    return agent, model, episode_returns, episode_successes, eval_returns, eval_successes
 
 
 if __name__ == '__main__':    
-    env_key="Minigrid-PickUpObj-Custom-v0"
-    env = gym.make(env_key) # gym.make(env_key, num_dists=9, size=11)
-    env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
-    env = RGBImgObsWrapper(env) # Wrapper for pixel observations
-    # env = RGBImgObsWrapper(env, obs_size=84) # Use obs_size=84 normally as in the DQN nature paper
-    path='models/{}'.format(env_key)
-
-    train(env, path = path, save_model=True, load_model=True)
+    env = gym.make(args.env_key)
+    if "MiniGrid" in args.env_key:
+        env = FullyObsWrapper(env) # Wrapper for MiniGrid egocentric full observations
+        env = RGBImgObsWrapper(env) # Wrapper for MiniGrid pixel observations
+    
+    model_path='models/{}'.format(args.env_key)
+    logs_path='logs/{}'.format(args.env_key)
+    train(env, model_path = model_path, logs_path = logs_path)
 
     

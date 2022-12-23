@@ -31,7 +31,7 @@ class ManualControl:
             print("done!")
             self.reset()
         else:
-            self.redraw(obs)
+            self.redraw(obs["image"])
 
     def redraw(self, img):
         if not args.agent_view:
@@ -45,7 +45,7 @@ class ManualControl:
             print("Mission: %s" % self.env.mission)
             self.window.set_caption(self.env.mission)
 
-        self.redraw(obs)
+        self.redraw(obs["image"])
 
     def key_handler(self, event):
         key: str = event.key
@@ -83,7 +83,7 @@ class ManualControl:
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '--env_key',
-    default="Minigrid-PickUpObj-Custom-v0",
+    default="MiniGrid-Custom-PickUpObj-12x12-v0",
     help="Environment"
 )
 parser.add_argument(
@@ -104,10 +104,22 @@ parser.add_argument(
     help="Grid size"
 )
 parser.add_argument(
+    '--tile_size',
+    type=int,
+    default=8,
+    help="Tile size for pixel observations"
+)
+parser.add_argument(
     '--obs_size',
     type=int,
     default=None,
     help="Observation size"
+)
+parser.add_argument(
+    '--egocentric',
+    default=False,
+    help="Egocentric agent view",
+    action='store_true'
 )
 parser.add_argument(
     "--seed",
@@ -123,12 +135,14 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+assert "MiniGrid" in args.env_key
+
 if "Custom" in args.env_key:
     env = gym.make(args.env_key, exp=args.exp, num_dists=args.num_dists, size=args.size, seed=args.seed)
 else:
     env = gym.make(args.env_key)
-env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
-env = RGBImgObsWrapper(env, obs_size=args.obs_size) # Wrapper for pixel observations
+env = FullyObsWrapper(env, egocentric=args.egocentric) # Wrapper for egocentric full observations
+env = RGBImgObsWrapper(env, tile_size=args.tile_size) # Wrapper for pixel observations
 
 manual_control = ManualControl(env)
 manual_control.start()

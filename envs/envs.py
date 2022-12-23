@@ -2,6 +2,7 @@
 Custom Environments
 """
 
+import gym
 from gym import spaces
 from gym.utils import seeding
 from gym_minigrid.minigrid import MiniGridEnv, Grid, Ball, Box, Key
@@ -89,8 +90,6 @@ class PickUpObjEnv(MiniGridEnv):
         super().__init__(
             grid_size=size,
             max_steps=float('inf'),
-            # Set this to True for maximum speed
-            see_through_walls=True,
         )
         
         # Modify action_space
@@ -207,7 +206,27 @@ class PickUpObjEnv(MiniGridEnv):
 
         return obs, reward, self.done, info
     
+class PickUpObjEnv8x8(PickUpObjEnv):    
+    def __init__(self, *args, **kwargs):
+        
+        kwargs["num_dists"] = 1
+        kwargs["size"] = 8
+        super().__init__(*args, **kwargs)
+    
+class PickUpObjEnv12x12(PickUpObjEnv):    
+    def __init__(self, *args, **kwargs):
+        
+        kwargs["num_dists"] = 9
+        kwargs["size"] = 12
+        super().__init__(*args, **kwargs)
+
+
 register(
-    id='Minigrid-PickUpObj-Custom-v0',
-    entry_point='envs.envs:PickUpObjEnv'
+    id='MiniGrid-Custom-PickUpObj-8x8-v0',
+    entry_point='envs.envs:PickUpObjEnv8x8'
+)
+
+register(
+    id='MiniGrid-Custom-PickUpObj-12x12-v0',
+    entry_point='envs.envs:PickUpObjEnv12x12'
 )

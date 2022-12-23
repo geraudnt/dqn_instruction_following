@@ -17,10 +17,11 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
         Optional: Egocentric topdown view
     """
 
-    def __init__(self, env, egocentric=False):
+    def __init__(self, env, egocentric=True):
         super().__init__(env)
 
         self.egocentric = egocentric
+        self.see_through_walls = True
         self.observation_space.spaces["image"] = spaces.Box(
             low=0,
             high=255,
@@ -78,11 +79,10 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
     This can be used to have the agent to solve the gridworld in pixel space.
     """
 
-    def __init__(self, env, tile_size=8, obs_size=None):
+    def __init__(self, env, tile_size=8):
         super().__init__(env)
 
         self.tile_size = tile_size
-        self.obs_size = obs_size
 
         obs_shape = env.observation_space.spaces['image'].shape
         self.observation_space.spaces['image'] = spaces.Box(
@@ -91,13 +91,6 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
             shape=(obs_shape[0] * tile_size, obs_shape[1] * tile_size, 3),
             dtype='uint8'
         )
-        if self.obs_size:
-            self.observation_space.spaces['image'] = spaces.Box(
-                low=0,
-                high=255,
-                shape=(self.obs_size, self.obs_size, 3),
-                dtype='uint8'
-            )
 
     def observation(self, obs):
         env = self.unwrapped
@@ -117,9 +110,32 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
                 tile_size=self.tile_size
             )
         
-        # Resize image
-        if self.obs_size:
-            rgb_img = cv2.resize(rgb_img, (self.obs_size, self.obs_size), interpolation=cv2.INTER_AREA)
+        return {
+            'mission': obs['mission'],
+            'image': rgb_img
+        }
+
+
+class ResizeObsWrapper(gym.core.ObservationWrapper):
+    """
+    Wrapper to use partially observable RGB image as observation.
+    This can be used to have the agent to solve the gridworld in pixel space.
+    """
+
+    def __init__(self, env, obs_size=84):
+        super().__init__(env)
+
+        self.obs_size = obs_size
+        self.observation_space.spaces['image'] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.obs_size, self.obs_size, 3),
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        rgb_img = obs["image"]
+        rgb_img = cv2.resize(rgb_img, (self.obs_size, self.obs_size), interpolation=cv2.INTER_AREA)
 
         return {
             'mission': obs['mission'],

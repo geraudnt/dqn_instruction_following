@@ -17,16 +17,15 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '--env_key',
-    default="MiniGrid-Custom-PickUpObj-12x12-v0", # "MiniGrid-DoorKey-8x8-v0"
+    default="Minigrid-Custom-PickUpObj-12x12-v0", # "MiniGrid-DoorKey-16x16-v0"
     help="Environment"
 )
-args = parser.parse_args()
 
 if __name__ == '__main__':
     env = gym.make(args.env_key)
-    if "MiniGrid" in args.env_key:
-        env = FullyObsWrapper(env) # Wrapper for MiniGrid egocentric full observations
-        env = RGBImgObsWrapper(env) # Wrapper for MiniGrid pixel observations
+    if "Minigrid" in args.env_key:
+        env = FullyObsWrapper(env) # Wrapper for Minigrid egocentric full observations
+        env = RGBImgObsWrapper(env) # Wrapper for Minigrid pixel observations
     path='models/{}'.format(args.env_key)
     window = Window(args.env_key)
       

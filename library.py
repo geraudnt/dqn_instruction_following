@@ -32,55 +32,62 @@ class LinearSchedule(object):
         fraction = min(float(t) / self.schedule_timesteps, 1.0)
         return self.initial_p + fraction * (self.final_p - self.initial_p)
 
-class ReplayBuffer(object):
-    def __init__(self, size, batch_size, rmin=0, rmax=1):
-        """Create Replay buffer.
-        Parameters
-        ----------
-        size: int
-            Max number of transitions to store in the buffer. When the buffer
-            overflows the old memories are dropped.
+class ReplayBuffer:
+    """
+    Simple storage for transitions from an environment.
+    """
+
+    def __init__(self, size, batch_size):
+        """
+        Initialise a buffer of a given size for storing transitions
+        :param size: the maximum number of transitions that can be stored
         """
         self._storage = []
-        self.size = 0
         self._maxsize = size
-        self.batch_size = batch_size
         self._next_idx = 0
-        self.rmin = rmin
-        self.rmax = rmax
+        self.batch_size = batch_size
 
-    def add(self, mission_t, obs_t, action, reward, obs_tp1, done, info={}): 
-        data = (mission_t, obs_t, action, reward, obs_tp1, done, info)   
+    def __len__(self):
+        return len(self._storage)
 
-        ### Init replay buffer if empty:
-        if self.size==0:
-            self._storage = [(mission_t, obs_t.copy(), action, reward, obs_tp1.copy() , done) 
-                            for _ in range(self._maxsize)]
-            print("Replay buffer initialised")
-        
-        ### add data to replay buffer
-        self._storage[self._next_idx] = data
+    def add(self, mission, state, action, reward, next_state, done, info):
+        """
+        Add a transition to the buffer. Old transitions will be overwritten if the buffer is full.
+        :param mission: the agent's task instruction
+        :param state: the agent's initial state
+        :param action: the action taken by the agent
+        :param reward: the reward the agent received
+        :param next_state: the subsequent state
+        :param done: whether the episode terminated
+        """
+        data = (mission, state, action, reward, next_state, done)
+
+        if self._next_idx >= len(self._storage):
+            self._storage.append(data)
+        else:
+            self._storage[self._next_idx] = data
         self._next_idx = (self._next_idx + 1) % self._maxsize
-        self.size = min(self.size+1,self._maxsize)
 
-    def sample_transitions(self):
-        idxs = [np.random.randint(self.size - 1) 
-                for _ in range(self.batch_size)]
-        return idxs
+    def _encode_sample(self, indices):
+        missions, states, actions, rewards, next_states, dones = [], [], [], [], [], []
+        for i in indices:
+            data = self._storage[i]
+            mission, state, action, reward, next_state, done = data
+            missions.append(np.array(mission, copy=False))
+            states.append(np.array(state, copy=False))
+            actions.append(action)
+            rewards.append(reward)
+            next_states.append(np.array(next_state, copy=False))
+            dones.append(done)
+        return np.array(missions), np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
 
     def sample(self):
-        missions_t, obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], [], []
-        
-        for t in self.sample_transitions():
-            mission_t, obs_t, action, reward, obs_tp1, done, info = self._storage[t]
-
-            missions_t.append(np.array(mission_t, copy=False))
-            obses_t.append(np.array(obs_t, copy=False))
-            actions.append(np.array(action, copy=False))
-            rewards.append(reward)
-            obses_tp1.append(np.array(obs_tp1, copy=False))
-            dones.append(done)
-        return np.array(missions_t), np.array(obses_t), np.array(actions), np.array(rewards), np.array(obses_tp1), np.array(dones)
+        """
+        Randomly sample a batch of transitions from the buffer.
+        :return: a mini-batch of sampled transitions
+        """
+        indices = np.random.randint(0, len(self._storage) - 1, size=self.batch_size)
+        return self._encode_sample(indices)
 
 
 class DQN(nn.Module):
@@ -106,13 +113,13 @@ class DQN(nn.Module):
         )
         f = lambda l,k,s: (l-k)//s + 1
         self.embedding_size = f(f(f(l,k1,s1),k2,s2),k3,s3)**2*c_out
-        # print('embedding_size: ', self.embedding_size)
     
         ### Mission embedding
         self.vocab_max_size = 100
         self.word_embedding_size = 32
         self.word_embedding = nn.Embedding(self.vocab_max_size, self.word_embedding_size)
-        self.text_embedding_size = self.embedding_size #self.word_embedding_size #
+        self.text_embedding_size = self.embedding_size # If image and text embeddings are multiplied
+        # self.text_embedding_size = 512
         self.text_rnn = nn.GRU(self.word_embedding_size, self.text_embedding_size, batch_first=True)
 
         ### Q_values
@@ -163,10 +170,6 @@ class Vocabulary:
                 raise ValueError("Maximum vocabulary capacity reached")
             self.vocab[token] = len(self.vocab) + 1
         return self.vocab[token]
-
-def save(path, agent):
-    model = {'params': agent.q_func.state_dict(), 'vocab': agent.vocab.vocab}
-    torch.save(model, path)
     
 def load(path, env):
     if torch.cuda.is_available():
@@ -245,4 +248,5 @@ class Agent(object):
         self.target_q_func.load_state_dict(self.q_func.state_dict())
 
     def save(self):
-        save(self.path, self)
+        model = {'params': self.q_func.state_dict(), 'vocab': self.vocab.vocab}
+        torch.save(model, self.path)
