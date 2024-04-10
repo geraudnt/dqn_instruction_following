@@ -36,6 +36,8 @@ class ManualControl:
     def redraw(self, img):
         if not args.agent_view:
             img = self.env.render("rgb_array", highlight=False)
+        else:
+            img = img["image"]
         self.window.show_img(img)
 
     def reset(self):
@@ -94,13 +96,13 @@ parser.add_argument(
 parser.add_argument(
     '--num_dists',
     type=int,
-    default=1,
+    default=9,
     help="Number of distractors"
 )
 parser.add_argument(
     '--size',
     type=int,
-    default=7,
+    default=12,
     help="Grid size"
 )
 parser.add_argument(
@@ -128,7 +130,7 @@ if "Custom" in args.env_key:
 else:
     env = gym.make(args.env_key)
 env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
-env = RGBImgObsWrapper(env, obs_size=args.obs_size) # Wrapper for pixel observations
+env = RGBImgObsWrapper(env, tile_size=32, obs_size=args.obs_size) # Wrapper for pixel observations
 
 manual_control = ManualControl(env)
 manual_control.start()

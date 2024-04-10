@@ -118,10 +118,10 @@ class PickUpObjEnv(MiniGridEnv):
         # Task
         exp = self.exp
         if not exp:
-            exp = self.gen_exp()
-            self.mission = self.gen_mission(exp)
+            self.exp_ = self.gen_exp()
+            self.mission = self.gen_mission(self.exp_)
 
-            exp = sympify(exp)
+            exp = sympify(self.exp_)
             exp = boolalg.simplify_logic(exp)
             goals = exp_goals(self._all_goals, exp)
             self.goals =  goals
