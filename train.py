@@ -149,6 +149,6 @@ if __name__ == '__main__':
     # env = RGBImgObsWrapper(env, obs_size=84) # Use obs_size=84 normally as in the DQN nature paper
     path='models/{}'.format(env_key)
 
-    train(env, path = path, save_model=True, load_model=True)
+    train(env, path = path, save_model=False, load_model=False)
 
     

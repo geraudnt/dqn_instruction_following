@@ -136,5 +136,6 @@ if __name__ == '__main__':
             
             if not args.save and window.closed:
                 break
-imageio.mimsave("images/trained_agent_{}.gif".format(args.env_key),images,fps=10)
+    if args.save:
+        imageio.mimsave("images/trained_agent_{}.gif".format(args.env_key),images,fps=10)
 
