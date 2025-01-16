@@ -30,7 +30,8 @@ python train.py --env_key "MiniGrid-Empty-Random-5x5-v0" --egocentric
 python train.py --env_key "Minigrid-PickUpObj-Custom-v0" --egocentric
 ```
 ```
-python visualise.py
+python visualise.py --env_key "MiniGrid-Empty-Random-5x5-v0" --egocentric
+python visualise.py --env_key "Minigrid-PickUpObj-Custom-v0" --egocentric
 ```
 <table>
   <tr>

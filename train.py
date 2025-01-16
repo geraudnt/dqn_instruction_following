@@ -160,7 +160,7 @@ if __name__ == '__main__':
     env = FullyObsWrapper(env, egocentric=args.egocentric) # Wrapper for egocentric full observations
     env = RGBImgObsWrapper(env) # Wrapper for pixel observations
     # env = RGBImgObsWrapper(env, obs_size=84) # Use obs_size=84 normally as in the DQN nature paper
-    path='models/{}'.format(env_key)
+    path='models/{}'.format(args.env_key)
 
     train(env, path = path, save_model=False, load_model=False)
 

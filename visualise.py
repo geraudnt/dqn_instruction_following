@@ -22,6 +22,12 @@ parser.add_argument(
     help="Environment"
 )
 parser.add_argument(
+    '--egocentric',
+    default=False,
+    help="Egocentric or allocentric",
+    action='store_true'
+)
+parser.add_argument(
     '--exp',
     default=None,
     help="Task expression"
@@ -62,7 +68,7 @@ if "Custom" in args.env_key:
     env = gym.make(args.env_key, exp=args.exp, num_dists=args.num_dists, size=args.size, seed=args.seed)
 else:
     env = gym.make(args.env_key)
-env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
+env = FullyObsWrapper(env, egocentric=args.egocentric) # Wrapper for egocentric full observations
 env = RGBImgObsWrapper(env, obs_size=args.obs_size) # Wrapper for pixel observations
 
 
@@ -107,7 +113,7 @@ if __name__ == '__main__':
                     fig, axs = plt.subplots(1, 2)
                     axs = axs.flatten()
 
-                    axs[0].set_title("Allocentric obs", fontsize=20)
+                    axs[0].set_title("State", fontsize=20)
                     axs[0].set_xticks([])
                     axs[0].set_yticks([])
                     axs[0].imshow(image_allocentric)
