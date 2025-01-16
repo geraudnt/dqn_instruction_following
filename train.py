@@ -7,7 +7,7 @@ import torch
 import os
 import sys
 import itertools
-
+import argparse
 import gym
 import gym_minigrid
 import envs.envs
@@ -141,10 +141,23 @@ def train(env,
     return agent, model, episode_returns, episode_successes
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '--env_key',
+    default="Minigrid-PickUpObj-Custom-v0",
+    help="Environment"
+)
+parser.add_argument(
+    '--egocentric',
+    default=False,
+    help="Egocentric or allocentric",
+    action='store_true'
+)
+
 if __name__ == '__main__':    
-    env_key="Minigrid-PickUpObj-Custom-v0"
-    env = gym.make(env_key) # gym.make(env_key, num_dists=9, size=11)
-    env = FullyObsWrapper(env, egocentric=True) # Wrapper for egocentric full observations
+    args = parser.parse_args()
+    env = gym.make(args.env_key) # gym.make(env_key, num_dists=9, size=11)
+    env = FullyObsWrapper(env, egocentric=args.egocentric) # Wrapper for egocentric full observations
     env = RGBImgObsWrapper(env) # Wrapper for pixel observations
     # env = RGBImgObsWrapper(env, obs_size=84) # Use obs_size=84 normally as in the DQN nature paper
     path='models/{}'.format(env_key)
